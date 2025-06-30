@@ -74,7 +74,7 @@ def main():
             w.writerow([
                 i,
                 random.randint(1, N),
-                random.choice(['SIS','Essalud','Privado','Particular']),
+                random.choice(['SIS','Essalud','Privado','Ninguno']),  # Fixed: Changed 'Particular' to 'Ninguno'
                 random_date(
                     datetime(2020,1,1).date(),
                     datetime(2025,6,28).date()
@@ -125,18 +125,22 @@ def main():
                 random.choice(['Recepcionista','Enfermero','Administrador'])
             ])
 
-    # 7) Turno
+    # 7) Turno - Fixed: Added 'fecha' column and changed turno values to lowercase
     with open('turno.csv', 'w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
-        w.writerow(['id_personal','id_cabina','turno'])
+        w.writerow(['id_personal','id_cabina','fecha','turno'])  # Added 'fecha' column
         for i in range(1, N+1):
             w.writerow([
                 random.randint(1, N),
                 random.randint(1, N),
-                random.choice(['Mañana','Tarde','Noche'])
+                random_date(  # Added fecha field
+                    datetime(2024,1,1).date(),
+                    datetime(2025,12,31).date()
+                ),
+                random.choice(['mañana','tarde','noche'])  # Changed to lowercase to match CHECK constraint
             ])
 
-    # 8) Cita
+    # 8) Cita - Fixed: Changed 'atendida' to 'confirmada' to match CHECK constraint
     with open('cita.csv', 'w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
         w.writerow([
@@ -153,7 +157,7 @@ def main():
                     datetime(2025,6,28).date()
                 ),
                 random_time(),
-                random.choice(['pendiente','atendida','cancelada']),
+                random.choice(['pendiente','confirmada','cancelada','atendida']),  # Fixed: matches CHECK constraint
                 random.randint(1, N)
             ])
 
@@ -161,3 +165,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# docker run --name mi-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=hito2 -p 5555:5432 -d postgres
