@@ -98,7 +98,7 @@ def main():
     with open(os.path.join(output_dir, 'especialidad.csv'), 'w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
         w.writerow(['nombre','descripcion'])
-        for i in range(int(N/100)):
+        for i in range(int(N)):
             nombre = f"Especialidad_{i+1}"
             especialidades.append(nombre)
             w.writerow([
@@ -113,7 +113,7 @@ def main():
             'dni','nombre','apellido','fecha_nacimiento',
             'sexo','correo','telefono'
         ])
-        for i in range(int(N/10)):
+        for i in range(int(N)):
             dni = generate_dni()
             while dni in medicos_dni or dni in pacientes_dni:  # Evitar duplicados
                 dni = generate_dni()
@@ -135,20 +135,36 @@ def main():
             ])
 
     # 4) Medico_Especialidad (Relación N:M)
+    # Asegurar que cada médico tenga al menos una especialidad
+    medico_especialidad_pairs = set()  # Para evitar duplicados
+    
     with open(os.path.join(output_dir, 'medico_especialidad.csv'), 'w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
         w.writerow(['dni_medico','nombre_especialidad'])
-        for i in range(int(N/10)):
-            w.writerow([
-                random.choice(medicos_dni),
-                random.choice(especialidades)
-            ])
+        
+        # Primero, asignar al menos una especialidad a cada médico
+        for medico_dni in medicos_dni:
+            especialidad = random.choice(especialidades)
+            pair = (medico_dni, especialidad)
+            if pair not in medico_especialidad_pairs:
+                medico_especialidad_pairs.add(pair)
+                w.writerow([medico_dni, especialidad])
+        
+        # Luego, agregar más relaciones hasta completar N/10 registros
+        target_count = max(len(medicos_dni), int(N/10))  # Al menos uno por médico
+        while len(medico_especialidad_pairs) < target_count:
+            medico_dni = random.choice(medicos_dni)
+            especialidad = random.choice(especialidades)
+            pair = (medico_dni, especialidad)
+            if pair not in medico_especialidad_pairs:
+                medico_especialidad_pairs.add(pair)
+                w.writerow([medico_dni, especialidad])
 
     # 5) Cabina
     with open(os.path.join(output_dir, 'cabina.csv'), 'w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
         w.writerow(['numero','ubicacion'])
-        for i in range(int(N/100)):
+        for i in range(int(N)):
             numero = f"C{i+1:04d}"
             cabinas.append(numero)
             w.writerow([
@@ -160,13 +176,16 @@ def main():
     with open(os.path.join(output_dir, 'consultorio.csv'), 'w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
         w.writerow(['numero','ubicacion'])
-        for i in range(int(N/50)):
+
+        print(f"Generando {N} consultorios...")  # Debug
+        for i in range(N):
             numero = f"CONS{i+1:04d}"
             consultorios.append(numero)
             w.writerow([
                 numero,
-                fake.address()
+                fake.city()
             ])
+        print(f"Consultorios generados: {len(consultorios)}")  # Debug
 
     # 7) Personal
     with open(os.path.join(output_dir, 'personal.csv'), 'w', newline='', encoding='utf-8') as f:
@@ -175,7 +194,7 @@ def main():
             'dni','nombre','apellido','fecha_nacimiento',
             'sexo','correo','telefono'
         ])
-        for i in range(int(N/20)):
+        for i in range(int(N)):
             dni = generate_dni()
             while dni in personal_dni or dni in pacientes_dni or dni in medicos_dni:  # Evitar duplicados
                 dni = generate_dni()
@@ -196,43 +215,65 @@ def main():
                 phone
             ])
 
-    # 8) Turno - Generar todos los días del período con todos los turnos y cabinas
+    # 8) Turno - NUEVA LÓGICA: todos los días, horarios y cabinas
     with open(os.path.join(output_dir, 'turno.csv'), 'w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
-        w.writerow(['id_turno','dni_personal','numero_cabina','fecha','turno'])
+        w.writerow(['dni_personal','numero_cabina','fecha','horario'])
         
-        # Definir el período completo
-        fecha_inicio = datetime(2025, 6, 1).date()
-        fecha_fin = datetime(2025, 7, 4).date()
         horarios = ['mañana', 'tarde', 'noche']
         
-        # Contador para el ID de turno
-        turno_counter = 1
+        # Fechas del período completo: 2024-01-01 a 2025-12-31
+        fecha_inicio = datetime(2025, 7, 1).date()
+        fecha_fin = datetime(2025, 8, 5).date()
         
-        # Iterar por cada día del período
-        current_date = fecha_inicio
-        while current_date <= fecha_fin:
-            # Para cada día, generar turnos para cada horario
+        print(f"Generando turnos para el período {fecha_inicio} a {fecha_fin}")
+        print(f"Cabinas disponibles: {len(cabinas)}")
+        print(f"Personal disponible: {len(personal_dni)}")
+
+        new_cabinas = cabinas[:int(N/100)]
+
+        total_turnos = 0
+        fecha_actual = fecha_inicio
+        
+        # Iterar día por día
+        while fecha_actual <= fecha_fin:
+            # Para cada día, generar los 3 horarios
             for horario in horarios:
-                # Para cada horario, generar un turno para cada cabina
-                for cabina in cabinas:
+                # Para cada horario, generar turnos para todas las cabinas
+                for cabina in new_cabinas:
+                    # Asignar personal aleatorio
+                    personal_asignado = random.choice(personal_dni)
+                    
                     w.writerow([
-                        f"TURNO{turno_counter:08d}",  # ID único con 8 dígitos
-                        random.choice(personal_dni),   # Personal asignado aleatoriamente
-                        cabina,                        # Cabina específica
-                        current_date,                  # Fecha actual
-                        horario                        # Horario específico
+                        personal_asignado,
+                        cabina,
+                        fecha_actual,
+                        horario
                     ])
-                    turno_counter += 1
+
+                    if total_turnos >= N:
+                        break
+                    else:
+                        total_turnos += 1
+                if total_turnos >= N:
+                    break
+            if total_turnos >= N:
+                break
             
             # Avanzar al siguiente día
-            current_date += timedelta(days=1)
-    
-    print(f"Generados {turno_counter - 1} turnos cubriendo el período completo 2024-2025")
+            fecha_actual += timedelta(days=1)
+            
+            # Mostrar progreso cada 30 días
+            if (fecha_actual - fecha_inicio).days % 30 == 0:
+                print(f"Procesado hasta: {fecha_actual}, turnos generados: {total_turnos}")
+        
+        print(f"Total de turnos generados: {total_turnos}")
+        print(f"Fórmula: {(fecha_fin - fecha_inicio).days + 1} días × 3 horarios × {len(cabinas)} cabinas = {((fecha_fin - fecha_inicio).days + 1) * 3 * len(cabinas)} turnos esperados")
 
-    # 9) Cita
+    # 9) Cita - NO incluir id_cita (se genera automáticamente)
     with open(os.path.join(output_dir, 'cita.csv'), 'w', newline='', encoding='utf-8') as f:
         w = csv.writer(f)
+        # Remover 'id_cita' del header
         w.writerow([
             'dni_paciente','dni_medico','fecha','hora',
             'estado','dni_personal','numero_consultorio'
@@ -251,7 +292,11 @@ def main():
                 random.choice(consultorios)
             ])
 
-    print(f"Archivos CSV generados con {N} filas cada uno en el directorio: {output_dir}/")
+    print(f"Archivos CSV generados en el directorio: {output_dir}/")
+    print("NOTA: La tabla 'turno' ahora contiene turnos para todos los días del período 2024-2025")
 
 if __name__ == '__main__':
     main()
+
+# docker run --name mi-postgres -e POSTGRES_PASSWORD=123 -p 5555:5432 -d postgres:15
+# docker cp tu_archivo.csv 008a8db97481c4f96109d3a12bb9ff6e53ea9f7bf7fa7376df92318aa5496dff:/tmp/datos.csv
